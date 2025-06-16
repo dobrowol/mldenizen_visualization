@@ -7,7 +7,8 @@ import base64
 import os
 
 app = Flask(__name__)
-CORS(app) 
+CORS(app, resources={r"/*": {"origins": "https://mldenizen.com"}})
+
 
 def predict(x, w, b):
     return 1 if np.dot(w, x) + b >= 0 else 0
