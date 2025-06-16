@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import matplotlib.pyplot as plt
 import numpy as np
 import io
 import base64
 
 app = Flask(__name__)
+CORS(app) 
 
 def predict(x, w, b):
     return 1 if np.dot(w, x) + b >= 0 else 0
