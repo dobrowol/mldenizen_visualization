@@ -32,6 +32,7 @@ def plot_decision_boundary(X, y, w, b, title):
 def visualize():
     try:
         data = request.json
+        print("📥 Received data:", data) 
         X = np.array(data["X"])
         y = np.array(data["y"])
         eta = float(data["eta"])
