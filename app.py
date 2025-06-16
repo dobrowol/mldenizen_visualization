@@ -5,6 +5,8 @@ import numpy as np
 import io
 import base64
 import os
+import subprocess
+import tempfile
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "https://mldenizen.com"}})
@@ -32,43 +34,33 @@ def plot_decision_boundary(X, y, w, b, title):
 def visualize():
     try:
         data = request.json
-        print("📥 Received data:", data) 
-        X = np.array(data["X"])
-        y = np.array(data["y"])
-        eta = float(data["eta"])
-        epochs = int(data["epochs"])
+        code = data.get("code", "")
+        if not code:
+            return jsonify({"error": "No code provided"}), 400
 
-        fig, axs = plt.subplots(1, 3, figsize=(12, 4))
-        w = np.zeros(X.shape[1])
-        b = 0
+        # Save code to a temporary file
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=False) as tmp:
+            tmp.write(code)
+            tmp_path = tmp.name
 
-        plt.sca(axs[0])
-        plot_decision_boundary(X, y, w, b, "Epoch 0")
+        # Run the code and capture output
+        result = subprocess.run(
+            ["python", tmp_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=10
+        )
 
-        for epoch in range(epochs):
-            for i in range(len(X)):
-                x_i = X[i]
-                y_pred = predict(x_i, w, b)
-                error = y[i] - y_pred
-                w += eta * error * x_i
-                b += eta * error
+        os.remove(tmp_path)  # Clean up
 
-            if epoch == 1:
-                plt.sca(axs[1])
-                plot_decision_boundary(X, y, w, b, "Epoch 2")
+        if result.returncode != 0:
+            return jsonify({"error": result.stderr.decode("utf-8")}), 400
 
-        plt.sca(axs[2])
-        plot_decision_boundary(X, y, w, b, f"Epoch {epochs}")
-        plt.tight_layout()
-
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-        img_b64 = base64.b64encode(buf.read()).decode('utf-8')
-        return jsonify({"image": f"data:image/png;base64,{img_b64}"})
+        output = result.stdout.decode("utf-8")
+        return jsonify({"output": output})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
